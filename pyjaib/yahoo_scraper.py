@@ -11,10 +11,11 @@ class YahooScraper:
     def __init__(
             self, 
             parser='html.parser', 
-            headers={'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/114.0'}):
+            headers={'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/114.0'},
+            data_foldername='data'):
         self.parser = parser
         self.headers = headers
-        self.path_to_data_folder =
+        self.data_foldername = data_foldername
 
     def __request_html(self, url):
         resp = requests.get(url, headers=self.headers)
@@ -30,16 +31,32 @@ class YahooScraper:
         with open(filename, 'w+', encoding="utf-8") as file:
             file.write(html)
     
+    def get_data_folder_full_file_path(self):
+        dir_filepath = os.path.dirname(os.path.realpath(__file__))
+        return os.path.join(dir_filepath, self.data_foldername)
+    
+    
+    def ensure_data_folder_exists(self, data_folder_full_filepath):
+        if not os.path.exists(data_folder_full_filepath):
+            os.makedirs(data_folder_full_filepath)
+
+    def format_epoch_secs_to_yy_mm_dd(self, epoch_secs):
+        return datetime.fromtimestamp(epoch_secs).strftime('%Y-%m-%d')
+
     def get_stock_history_full_filepath(self, symbol, start_of_period_epoch, end_of_period_epoch):
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        start_of_period_date = datetime.fromtimestamp(start_of_period_epoch).strftime('%Y-%m-%d')
-        end_of_period_date = datetime.fromtimestamp(end_of_period_epoch).strftime('%Y-%m-%d')
-        stock_history_filename = '/{symbol}_{start_of_period_date}_{end_of_period_date}.html'.format(
+        data_folder_full_filepath = self.get_data_folder_full_file_path()
+
+        self.ensure_data_folder_exists(data_folder_full_filepath)
+
+        start_of_period_date = self.format_epoch_secs_to_yy_mm_dd(start_of_period_epoch)
+        end_of_period_date = self.format_epoch_secs_to_yy_mm_dd(end_of_period_epoch)
+        stock_history_filename = '{symbol}_{start_of_period_date}_{end_of_period_date}.html'.format(
             symbol = symbol,
             start_of_period_date = start_of_period_date,
             end_of_period_date = end_of_period_date,
         )
-        stock_history_full_filepath = dir_path + stock_history_filename
+        
+        stock_history_full_filepath = os.path.join(data_folder_full_filepath, stock_history_filename)
         return stock_history_full_filepath
 
     @staticmethod
@@ -65,6 +82,10 @@ class YahooScraper:
             start_of_period_epoch = start_of_period_epoch,
             end_of_period_epoch = end_of_period_epoch
         )
+    
+    def parse_stock_price_history_page(self, stock_history_html):
+        soup = BeautifulSoup(stock_history_html, self.parser)
+
 
     def get_stock_price_history(self, symbol, start_of_period_epoch=None, end_of_period_epoch=None, saveHtml=False):
         if end_of_period_epoch is None:  
